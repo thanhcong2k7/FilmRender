@@ -1,0 +1,63 @@
+name: Build Windows x86_64
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows-x64:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2 (MINGW64 + wxWidgets 3.2)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-wxwidgets3.2-msw
+            mingw-w64-x86_64-ntldd
+
+      - name: Configure with CMake
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DwxWidgets_CONFIG_EXECUTABLE=/mingw64/bin/wx-config-3.2
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Run core tests
+        run: ctest --test-dir build --output-on-failure -V
+
+      - name: Package portable Windows x64 bundle
+        run: |
+          mkdir -p dist/FilmRender-win64
+          cp build/FilmRender.exe dist/FilmRender-win64/
+          cp README.md dist/FilmRender-win64/
+          ntldd -R build/FilmRender.exe \
+            | awk '/=>/ {print $3}' \
+            | tr '\\' '/' \
+            | grep -i '/mingw64/bin/' \
+            | sort -u \
+            | while IFS= read -r dll; do
+                cp -v "$(cygpath -u "$dll")" dist/FilmRender-win64/
+              done
+
+      - name: Upload Windows x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FilmRender-windows-x86_64
+          path: dist/FilmRender-win64/
+          if-no-files-found: error
