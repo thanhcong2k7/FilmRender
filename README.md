@@ -114,7 +114,7 @@ ctest --test-dir build --output-on-failure
 
 ## GitHub Actions (Windows x86_64)
 
-The workflow at [.github/workflows/build-windows.yml](.github/workflows/build-windows.yml) builds `FilmRender.exe` on `windows-latest` using MSYS2 (`MINGW64` + `wxwidgets3.2-msw`), runs `ctest`, bundles required MinGW/wxWidgets DLLs via `ntldd`, and uploads the `FilmRender-windows-x86_64` artifact.
+The workflow at [.github/workflows/build-windows.yml](.github/workflows/build-windows.yml) builds `FilmRender.exe` on `windows-latest` using MSYS2 (`MINGW64` + `wxwidgets3.2-msw`), runs `ctest`, bundles required MinGW/wxWidgets DLLs via `objdump`, and uploads the `FilmRender-windows-x86_64` artifact.
 
 ---
 
