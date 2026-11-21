@@ -17,23 +17,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup MSYS2 (MINGW64 + wxWidgets 3.2)
+      - name: Setup MSYS2 (UCRT64)
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
-          update: false
+          msystem: UCRT64
+          update: true
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-wxwidgets3.2-msw
-            mingw-w64-x86_64-ntldd
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+
+      - name: Install wxWidgets MSW
+        run: |
+          if pacman -Si mingw-w64-ucrt-x86_64-wxwidgets3.2-msw >/dev/null 2>&1; then
+            WX_PKG="mingw-w64-ucrt-x86_64-wxwidgets3.2-msw"
+          else
+            WX_PKG=$(pacman -Ssq '^mingw-w64-ucrt-x86_64-wxwidgets[0-9.]*-msw$' | sort -V | tail -n 1)
+          fi
+          if [ -z "$WX_PKG" ]; then
+            echo "No wxWidgets MSW package found in UCRT64!"
+            exit 1
+          fi
+          echo "Installing $WX_PKG..."
+          pacman --noconfirm -S --needed "$WX_PKG"
 
       - name: Configure with CMake
         run: |
+          WX_CFG=$(find /ucrt64/bin -maxdepth 1 -name 'wx-config*' | sort -V | tail -n 1)
+          if [ -z "$WX_CFG" ]; then
+            echo "No wx-config found in /ucrt64/bin!"
+            exit 1
+          fi
+          echo "Using wx-config: $WX_CFG"
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DwxWidgets_CONFIG_EXECUTABLE=/mingw64/bin/wx-config-3.2
+            -DwxWidgets_CONFIG_EXECUTABLE="$WX_CFG"
 
       - name: Build
         run: cmake --build build -j
@@ -46,14 +64,23 @@ jobs:
           mkdir -p dist/FilmRender-win64
           cp build/FilmRender.exe dist/FilmRender-win64/
           cp README.md dist/FilmRender-win64/
-          ntldd -R build/FilmRender.exe \
-            | awk '/=>/ {print $3}' \
-            | tr '\\' '/' \
-            | grep -i '/mingw64/bin/' \
-            | sort -u \
-            | while IFS= read -r dll; do
-                cp -v "$(cygpath -u "$dll")" dist/FilmRender-win64/
-              done
+
+          queue=("build/FilmRender.exe")
+          seen=""
+          while [ ${#queue[@]} -gt 0 ]; do
+            cur="${queue[0]}"
+            queue=("${queue[@]:1}")
+            while IFS= read -r dll; do
+              [ -z "$dll" ] && continue
+              lc=$(printf '%s' "$dll" | tr '[:upper:]' '[:lower:]')
+              case "$seen" in *"|$lc|"*) continue ;; esac
+              seen="$seen|$lc|"
+              if [ -f "/ucrt64/bin/$dll" ]; then
+                cp -v "/ucrt64/bin/$dll" dist/FilmRender-win64/
+                queue+=("/ucrt64/bin/$dll")
+              fi
+            done < <(objdump -p "$cur" | awk '/DLL Name:/ {print $3}')
+          done
 
       - name: Upload Windows x64 artifact
         uses: actions/upload-artifact@v4

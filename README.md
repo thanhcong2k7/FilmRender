@@ -101,10 +101,11 @@ ctest --test-dir build -C Release --output-on-failure
 .\build\Release\FilmRender.exe
 ```
 
-### Windows (MSYS2 / MinGW-w64)
+### Windows (MSYS2 / UCRT64)
 ```bash
-pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-wxwidgets3.2-msw
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DwxWidgets_CONFIG_EXECUTABLE=/mingw64/bin/wx-config-3.2
+pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-wxwidgets3.3-msw
+WX_CFG=$(ls /ucrt64/bin/wx-config* | sort -V | tail -n 1)
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DwxWidgets_CONFIG_EXECUTABLE="$WX_CFG"
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ./build/FilmRender.exe
@@ -114,7 +115,7 @@ ctest --test-dir build --output-on-failure
 
 ## GitHub Actions (Windows x86_64)
 
-The workflow at [.github/workflows/build-windows.yml](.github/workflows/build-windows.yml) builds `FilmRender.exe` on `windows-latest` using MSYS2 (`MINGW64` + `wxwidgets3.2-msw`), runs `ctest`, bundles required MinGW/wxWidgets DLLs via `objdump`, and uploads the `FilmRender-windows-x86_64` artifact.
+The workflow at [.github/workflows/build-windows.yml](.github/workflows/build-windows.yml) builds `FilmRender.exe` on `windows-latest` using MSYS2 (`UCRT64` + wxWidgets MSW), runs `ctest`, bundles required UCRT64/wxWidgets DLLs via `objdump`, and uploads the `FilmRender-windows-x86_64` artifact.
 
 ---
 
