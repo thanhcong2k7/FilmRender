@@ -44,8 +44,15 @@ void TestTimestampMultiplier() {
 }
 
 void TestFormatConcatLine() {
-    const fs::path p = "/tmp/it's a test/video.mp4";
-    CHECK(FormatConcatLine(p) == "file '/tmp/it'\\''s a test/video.mp4'");
+    const fs::path p = fs::temp_directory_path() / "it's a test" / "video.mp4";
+    const std::string line = FormatConcatLine(p);
+    CHECK(line.rfind("file '", 0) == 0);
+    CHECK(line.find("it'\\''s a test/video.mp4'") != std::string::npos);
+#ifndef _WIN32
+    if (fs::temp_directory_path() == fs::path("/tmp")) {
+        CHECK(line == "file '/tmp/it'\\''s a test/video.mp4'");
+    }
+#endif
 }
 
 void TestScanAndSanitize() {
